@@ -35,3 +35,5 @@ endif()
 
 enable_testing()
 add_subdirectory(tests)
+
+install(TARGETS fpc RUNTIME DESTINATION bin)

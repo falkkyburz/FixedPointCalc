@@ -332,6 +332,34 @@ LineResult command_set(const std::string& args, Session& session) {
 
 EvalResult eval_expression(const std::string& text, const Session& session) { return Parser(text, session).parse(); }
 
+std::string help_text() {
+  return
+    "commands:\n"
+    "  :set                         print all settings\n"
+    "  :set name?                   print one setting\n"
+    "  :set name=value [...]        change settings\n"
+    "  :eps [Q16.16|I16Q16|q16]     print fixed-point epsilon\n"
+    "  :range [Q16.16|I16Q16|q16]   print raw and double min/max\n"
+    "  :q, :quit                    exit\n"
+    "settings:\n"
+    "  bits, frac, signed, rounding, overflow, output, color\n"
+    "  :set Q16.16, :set I16Q16, :set q16\n"
+    "rounding options:\n"
+    "  trunc, zero, floor, ceil, nearest, nearest_even, away\n"
+    "overflow options:\n"
+    "  error, wrap, saturate\n"
+    "output options:\n"
+    "  value, full, raw, hex, bin\n"
+    "color options:\n"
+    "  auto, always, never\n"
+    "expressions:\n"
+    "  + - * / << >>, parentheses, ans for the last result\n"
+    "literals:\n"
+    "  1.25, 1.25f, 1.25q16, 1.25q12.4, 1.25i16q4, b1010, 0x10, r11\n"
+    "commands as expressions:\n"
+    "  asraw 0x00010000, raw 1.5, hex 1.5, bin 1.5, float 1.5, double 1.5";
+}
+
 namespace {
 void store_ans(Session& session, const Fixed& value) {
   session.has_ans = true;
@@ -371,32 +399,7 @@ LineResult execute_line(const std::string& line, Session& session) {
       if (!r.error.empty()) return {false, true, true, r.error};
       return {false, true, false, decimal_value(r.value)};
     }
-    if (cmd == "h" || cmd == "help") return {false, true, false,
-      "fpc help\n"
-      "commands:\n"
-      "  :set                         print all settings\n"
-      "  :set name?                   print one setting\n"
-      "  :set name=value [...]        change settings\n"
-      "  :eps [Q16.16|I16Q16|q16]     print fixed-point epsilon\n"
-      "  :range [Q16.16|I16Q16|q16]   print raw and double min/max\n"
-      "  :q, :quit                    exit\n"
-      "settings:\n"
-      "  bits, frac, signed, rounding, overflow, output, color\n"
-      "  :set Q16.16, :set I16Q16, :set q16\n"
-      "rounding options:\n"
-      "  trunc, zero, floor, ceil, nearest, nearest_even, away\n"
-      "overflow options:\n"
-      "  error, wrap, saturate\n"
-      "output options:\n"
-      "  value, full, raw, hex, bin\n"
-      "color options:\n"
-      "  auto, always, never\n"
-      "expressions:\n"
-      "  + - * / << >>, parentheses, ans for the last result\n"
-      "literals:\n"
-      "  1.25, 1.25f, 1.25q16, 1.25q12.4, 1.25i16q4, b1010, 0x10, r11\n"
-      "commands as expressions:\n"
-      "  asraw 0x00010000, raw 1.5, hex 1.5, bin 1.5, float 1.5, double 1.5"};
+    if (cmd == "h" || cmd == "help") return {false, true, false, help_text()};
     if (starts(cmd, "set")) return command_set(cmd.size() == 3 ? "" : cmd.substr(3), session);
     return {false, true, true, "unknown command"};
   }

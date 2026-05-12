@@ -21,6 +21,17 @@ if [[ "$($FPC --version)" != "fpc 0.1.0" ]]; then
   echo "FAIL version" >&2
   exit 1
 fi
+if [[ "$($FPC -v)" != "fpc 0.1.0" ]]; then
+  echo "FAIL short version" >&2
+  exit 1
+fi
+"$FPC" --help > "$TMP"
+grep -Fq -- 'usage:' "$TMP"
+grep -Fq -- 'fpc --version, -v' "$TMP"
+grep -Fq -- 'commands as expressions:' "$TMP"
+grep -Fq -- '1.25, 1.25f, 1.25q16' "$TMP"
+"$FPC" -h > "$TMP"
+grep -Fq -- 'fpc -e <expr>' "$TMP"
 
 "$FPC" -e '1.5 + 2.25' > "$TMP"
 grep -Fxq "3.75" "$TMP"

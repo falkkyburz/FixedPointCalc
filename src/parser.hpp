@@ -13,3 +13,4 @@ struct LineResult {
 
 LineResult execute_line(const std::string& line, Session& session);
 EvalResult eval_expression(const std::string& text, const Session& session);
+std::string help_text();

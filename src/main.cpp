@@ -10,8 +10,28 @@
 #define FPC_VERSION "0.0.0"
 #endif
 
+namespace {
+void print_help() {
+  std::cout <<
+    "fpc " << FPC_VERSION << "\n"
+    "usage:\n"
+    "  fpc                         start interactive REPL\n"
+    "  fpc -e <expr>               evaluate one expression or command\n"
+    "  fpc <expr>                  evaluate one expression or command\n"
+    "  fpc <script.fpc>            run script file\n"
+    "  fpc --help, -h              print this help\n"
+    "  fpc --version, -v           print version\n"
+    "\n"
+    << help_text() << "\n";
+}
+}
+
 int main(int argc, char** argv) {
   Session session;
+  if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
+    print_help();
+    return 0;
+  }
   if (argc == 2 && (std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v")) {
     std::cout << "fpc " << FPC_VERSION << "\n";
     return 0;
