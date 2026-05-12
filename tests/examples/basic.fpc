@@ -1,0 +1,7 @@
+:set color=never
+:set bits=32 frac=16
+1.5 + 2.25
+asraw 0x00018000
+raw 1.5
+hex 1.5
+bin 1.5
