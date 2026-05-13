@@ -2,10 +2,10 @@
 
 #include "session.hpp"
 
-#include <gmpxx.h>
+#include <cstdint>
 #include <string>
 
-using cpp_int = mpz_class;
+using cpp_int = __int128_t;
 
 struct Fixed {
   cpp_int raw = 0;

@@ -1,14 +1,25 @@
 #include "fixed.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iomanip>
 #include <limits>
 #include <cmath>
 #include <sstream>
+#include <string>
 
 cpp_int pow2(int n) { return cpp_int(1) << n; }
 
 namespace {
+std::string validate_format(const Format& f) {
+  if (f.bits <= 0) return "bits must be > 0";
+  if (f.bits > 64) return "bits must be <= 64";
+  if (f.frac < 0) return "frac must be >= 0";
+  if (f.frac > f.bits) return "frac must be <= bits";
+  if (f.signed_value && f.bits <= f.frac) return "signed format needs at least one integer/sign bit";
+  return {};
+}
+
 cpp_int min_raw(const Format& f) { return f.signed_value ? -(pow2(f.bits - 1)) : cpp_int(0); }
 cpp_int max_raw(const Format& f) { return f.signed_value ? pow2(f.bits - 1) - 1 : pow2(f.bits) - 1; }
 
@@ -23,7 +34,51 @@ cpp_int ceil_div(cpp_int n, cpp_int d) { return -floor_div(-n, d); }
 
 cpp_int abs_int(cpp_int v) { return v < 0 ? -v : v; }
 
+std::string int_to_string(cpp_int v) {
+  if (v == 0) return "0";
+  const bool neg = v < 0;
+  unsigned __int128 n = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
+  std::string out;
+  while (n != 0) {
+    out.push_back(static_cast<char>('0' + (n % 10)));
+    n /= 10;
+  }
+  if (neg) out.push_back('-');
+  std::reverse(out.begin(), out.end());
+  return out;
+}
+
+double int_to_double(cpp_int v) {
+  const bool neg = v < 0;
+  unsigned __int128 n = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
+  double out = 0.0;
+  double scale = 1.0;
+  while (n != 0) {
+    if ((n & 1) != 0) out += scale;
+    scale *= 2.0;
+    n >>= 1;
+  }
+  return neg ? -out : out;
+}
+
+bool mul_overflows(cpp_int a, cpp_int b, cpp_int& out) {
+  if (a == 0 || b == 0) { out = 0; return false; }
+  const cpp_int max = std::numeric_limits<cpp_int>::max();
+  const cpp_int min = std::numeric_limits<cpp_int>::min();
+  if (a > 0) {
+    if (b > 0) { if (a > max / b) return true; }
+    else { if (b < min / a) return true; }
+  } else {
+    if (b > 0) { if (a < min / b) return true; }
+    else { if (a != 0 && b < max / a) return true; }
+  }
+  out = a * b;
+  return false;
+}
+
 EvalResult enforce(cpp_int raw, const Format& f, const Session& session) {
+  const auto format_error = validate_format(f);
+  if (!format_error.empty()) return {{}, format_error};
   const cpp_int lo = min_raw(f);
   const cpp_int hi = max_raw(f);
   if (raw >= lo && raw <= hi) return {Fixed{raw, f}, {}};
@@ -72,8 +127,12 @@ cpp_int div_round(cpp_int numerator, cpp_int denominator, RoundingMode mode) {
 }
 
 EvalResult make_from_rational(cpp_int numerator, cpp_int denominator, const Format& format, const Session& session) {
+  const auto format_error = validate_format(format);
+  if (!format_error.empty()) return {{}, format_error};
   if (denominator == 0) return {{}, "division by zero"};
-  cpp_int raw = div_round(numerator * pow2(format.frac), denominator, session.rounding);
+  cpp_int scaled = 0;
+  if (mul_overflows(numerator, pow2(format.frac), scaled)) return {{}, "overflow"};
+  cpp_int raw = div_round(scaled, denominator, session.rounding);
   return enforce(raw, format, session);
 }
 
@@ -102,7 +161,9 @@ EvalResult sub_fixed(const Fixed& a, const Fixed& b, const Session& session) {
 EvalResult mul_fixed(const Fixed& a, const Fixed& b, const Session& session) {
   auto ca = convert_format(a, session_format(session), session); if (!ca.error.empty()) return ca;
   auto cb = convert_format(b, session_format(session), session); if (!cb.error.empty()) return cb;
-  cpp_int raw = div_round(ca.value.raw * cb.value.raw, pow2(session.frac), session.rounding);
+  cpp_int product = 0;
+  if (mul_overflows(ca.value.raw, cb.value.raw, product)) return {{}, "overflow"};
+  cpp_int raw = div_round(product, pow2(session.frac), session.rounding);
   return enforce(raw, session_format(session), session);
 }
 
@@ -110,7 +171,9 @@ EvalResult div_fixed(const Fixed& a, const Fixed& b, const Session& session) {
   auto ca = convert_format(a, session_format(session), session); if (!ca.error.empty()) return ca;
   auto cb = convert_format(b, session_format(session), session); if (!cb.error.empty()) return cb;
   if (cb.value.raw == 0) return {{}, "division by zero"};
-  cpp_int raw = div_round(ca.value.raw * pow2(session.frac), cb.value.raw, session.rounding);
+  cpp_int numerator = 0;
+  if (mul_overflows(ca.value.raw, pow2(session.frac), numerator)) return {{}, "overflow"};
+  cpp_int raw = div_round(numerator, cb.value.raw, session.rounding);
   return enforce(raw, session_format(session), session);
 }
 
@@ -118,7 +181,7 @@ bool integer_shift_amount(const Fixed& value, long long& out) {
   if (value.format.frac > 0 && (value.raw % pow2(value.format.frac)) != 0) return false;
   cpp_int n = value.raw >> value.format.frac;
   if (n < cpp_int(-1000001) || n > cpp_int(1000001)) return false;
-  out = n.get_si();
+  out = static_cast<long long>(n);
   return true;
 }
 
@@ -147,13 +210,13 @@ std::string decimal_value(const Fixed& value) {
   if (rem < 0) rem = -rem;
   std::ostringstream os;
   if (value.raw < 0 && ip == 0) os << '-';
-  os << ip;
+  os << int_to_string(ip);
   if (rem != 0) {
     os << '.';
     for (int i = 0; i < value.format.frac && rem != 0; ++i) {
       rem *= 10;
       cpp_int digit = rem / scale;
-      os << digit.get_ui();
+      os << static_cast<unsigned>(digit);
       rem %= scale;
     }
   }
@@ -162,7 +225,7 @@ std::string decimal_value(const Fixed& value) {
 
 namespace {
 double to_double(const Fixed& value) {
-  return std::ldexp(value.raw.get_d(), -value.format.frac);
+  return std::ldexp(int_to_double(value.raw), -value.format.frac);
 }
 }
 
@@ -178,7 +241,7 @@ std::string double_value(const Fixed& value) {
   return os.str();
 }
 
-std::string raw_decimal(const Fixed& value) { return value.raw.get_str(); }
+std::string raw_decimal(const Fixed& value) { return int_to_string(value.raw); }
 
 std::string raw_hex(const Fixed& value, int min_bits) {
   cpp_int v = value.raw;
@@ -188,7 +251,7 @@ std::string raw_hex(const Fixed& value, int min_bits) {
   std::string out;
   do {
     cpp_int nibble = v & 0xf;
-    int d = nibble.get_ui();
+    int d = static_cast<int>(nibble);
     out.push_back("0123456789abcdef"[d]);
     v >>= 4;
   } while (v > 0);

@@ -27,6 +27,7 @@ cpp_int parse_uint_base(const std::string& s, int base) {
     else if (c >= 'a' && c <= 'f') d = c - 'a' + 10;
     else if (c >= 'A' && c <= 'F') d = c - 'A' + 10;
     if (d < 0 || d >= base) throw std::runtime_error("invalid digit");
+    if (v > (std::numeric_limits<cpp_int>::max() - d) / base) throw std::runtime_error("integer literal too large");
     v = v * base + d;
   }
   return v;

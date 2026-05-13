@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gmpxx.h>
+#include <cstdint>
 #include <string>
 
 enum class RoundingMode { Trunc, Zero, Floor, Ceil, Nearest, NearestEven, Away };
@@ -23,7 +23,7 @@ struct Session {
   OutputMode output = OutputMode::Value;
   ColorMode color = ColorMode::Auto;
   bool has_ans = false;
-  mpz_class ans_raw = 0;
+  __int128_t ans_raw = 0;
   Format ans_format;
 };
 

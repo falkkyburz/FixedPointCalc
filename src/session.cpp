@@ -126,6 +126,7 @@ bool parse_bool(const std::string& text, bool& out) {
 
 std::string validate_session(const Session& s) {
   if (s.bits <= 0) return "bits must be > 0";
+  if (s.bits > 64) return "bits must be <= 64";
   if (s.frac < 0) return "frac must be >= 0";
   if (s.frac > s.bits) return "frac must be <= bits";
   if (s.signed_value && s.bits <= s.frac) return "signed format needs at least one integer/sign bit";

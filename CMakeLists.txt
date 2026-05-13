@@ -7,8 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_path(READLINE_INCLUDE_DIR readline/readline.h REQUIRED)
 find_library(READLINE_LIBRARY readline REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GMPXX REQUIRED gmpxx)
 find_library(HISTORY_LIBRARY history)
 find_library(TINFO_LIBRARY tinfo)
 find_library(NCURSES_LIBRARY ncurses)
@@ -21,9 +19,9 @@ add_executable(fpc
   src/repl.cpp
 )
 
-target_include_directories(fpc PRIVATE src ${READLINE_INCLUDE_DIR} ${GMPXX_INCLUDE_DIRS})
+target_include_directories(fpc PRIVATE src ${READLINE_INCLUDE_DIR})
 target_compile_definitions(fpc PRIVATE FPC_VERSION="${PROJECT_VERSION}")
-target_link_libraries(fpc PRIVATE ${READLINE_LIBRARY} ${GMPXX_LIBRARIES})
+target_link_libraries(fpc PRIVATE ${READLINE_LIBRARY})
 if(HISTORY_LIBRARY)
   target_link_libraries(fpc PRIVATE ${HISTORY_LIBRARY})
 endif()
